@@ -1,36 +1,22 @@
 #include <Windows.h>
 #include <iostream>
-#include "../CTRLSENDLL/dllmain.h"
-unsigned long GetTargetThreadIdFromWindow(const wchar_t* className,const  wchar_t* windowName)
+
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    HWND targetWnd;
-    HANDLE hProcess;
-    unsigned long processID = 0;
-
-    targetWnd = FindWindow(className, windowName);
-   unsigned long h= GetWindowThreadProcessId(targetWnd, &processID);
-   std::cout << processID;
-   return h;
-}
-
-int main(int argc, TCHAR* argv[]) {
     MSG msg;
-    unsigned long threadID = GetTargetThreadIdFromWindow(L"Qt5QWindowIcon", NULL);
-    printf("TID: %i", threadID);
 
     HINSTANCE hinst = LoadLibrary(TEXT("CTRLSENDLL.dll"));
 
-    if (hinst&&threadID) {
-        typedef void (*Install)(unsigned long);
+    if (hinst) {
+        typedef void (*Install)();
         typedef void (*Uninstall)();
 
-        dwPid = threadID;
 
         Install install = (Install)GetProcAddress(hinst, "HookStart");
         Uninstall uninstall = (Uninstall)GetProcAddress(hinst, "HookEnd");
 
-        std::cout << dwPid;
-        install(threadID);
+        install();
         
 
         while (GetMessage(&msg, NULL, 0, 0) > 0)
@@ -38,7 +24,6 @@ int main(int argc, TCHAR* argv[]) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        getchar();
         uninstall();
     }
 
