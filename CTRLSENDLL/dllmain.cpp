@@ -140,34 +140,47 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 				return 1;
 			}
 			if (wParam == VK_RETURN&&!isEnter&& !isCtrl) {
-				INPUT ipt[5];
-				ipt[0].type = INPUT_KEYBOARD;
-				ipt[0].ki.wVk = VK_SHIFT;
-				ipt[0].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-				ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-
-				ipt[1].type = INPUT_KEYBOARD;
-				ipt[1].ki.wVk = VK_RETURN;
-				ipt[1].ki.wScan = MapVirtualKey(VK_RETURN, 0);
+				INPUT ipt[6];
+				//MessageBox(NULL, L"撃ってる", L"HookStart", MB_OK);
+				ipt[1].type = INPUT_KEYBOARD;;
+				ipt[1].ki.wVk = VK_SHIFT;
+				ipt[1].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
 				ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[1].ki.dwFlags = KEYEVENTF_KEYUP;
+				ipt[1].ki.dwFlags = KEYEVENTF_SCANCODE|KEYEVENTF_KEYUP;
+
 				ipt[2].type = INPUT_KEYBOARD;
-				ipt[2].ki.wVk = VK_RETURN;
-				ipt[2].ki.wScan = MapVirtualKey(VK_RETURN, 0);
+				ipt[2].ki.wVk = VK_SHIFT;
+				ipt[2].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
 				ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
+				ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE;
 
-				ipt[3].type = INPUT_KEYBOARD;;
-				ipt[3].ki.wVk = VK_SHIFT;
-				ipt[3].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
+
+				ipt[0].type = INPUT_KEYBOARD;
+				ipt[0].ki.wVk = VK_RETURN;
+				ipt[0].ki.wScan = MapVirtualKey(VK_RETURN, 0);
+				ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
+				ipt[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+
+				ipt[3].type = INPUT_KEYBOARD;
+				ipt[3].ki.wVk = VK_RETURN;
+				ipt[3].ki.wScan = MapVirtualKey(VK_RETURN, 0);
 				ipt[3].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[3].ki.dwFlags = KEYEVENTF_KEYUP;
+				ipt[3].ki.dwFlags = KEYEVENTF_SCANCODE;
 
-				ipt[4].type = INPUT_KEYBOARD;
-				ipt[4].ki.wVk = VK_RETURN;
-				ipt[4].ki.wScan = MapVirtualKey(VK_RETURN, 0);
+
+				ipt[4].type = INPUT_KEYBOARD;;
+				ipt[4].ki.wVk = VK_SHIFT;
+				ipt[4].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
 				ipt[4].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[4].ki.dwFlags = KEYEVENTF_KEYUP;
-				SendInput(5, ipt, sizeof(INPUT));
+				ipt[4].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+
+				ipt[5].type = INPUT_KEYBOARD;
+				ipt[5].ki.wVk = VK_RETURN;
+				ipt[5].ki.wScan = MapVirtualKey(VK_RETURN, 0);
+				ipt[5].ki.dwExtraInfo = GetMessageExtraInfo();
+				ipt[5].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+
+				SendInput(6, ipt, sizeof(INPUT));
 
 				isEnter = true;
 				return 1;
