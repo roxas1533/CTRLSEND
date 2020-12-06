@@ -78,7 +78,6 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 
 			if (wParam == VK_CONTROL) {
 				isCtrl = true;
-				return 1;
 			}
 			if (wParam == VK_RETURN) {
 				if (!isCtrl) {
@@ -95,12 +94,12 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 					ipt[2].ki.wVk = VK_SHIFT;
 					ipt[2].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
 					ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[2].ki.dwFlags = KEYEVENTF_KEYUP;
+					ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 					ipt[3].type = INPUT_KEYBOARD;;
 					ipt[3].ki.wVk = VK_RETURN;
 					ipt[3].ki.wScan = MapVirtualKey(VK_RETURN, 0);
 					ipt[3].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[3].ki.dwFlags = KEYEVENTF_KEYUP;
+					ipt[3].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 					SendInput(4, ipt, sizeof(INPUT));
 					return 1;
 				}
@@ -110,16 +109,19 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 					ipt[0].ki.wVk = VK_CONTROL;
 					ipt[0].ki.wScan = MapVirtualKey(VK_CONTROL, 0);
 					ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[0].ki.dwFlags = KEYEVENTF_KEYUP;
+					ipt[0].ki.dwFlags = KEYEVENTF_SCANCODE|KEYEVENTF_KEYUP;
+
 					ipt[1].type = INPUT_KEYBOARD;
 					ipt[1].ki.wVk = VK_RETURN;
 					ipt[1].ki.wScan = MapVirtualKey(VK_RETURN, 0);
 					ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
+					ipt[1].ki.dwFlags = KEYEVENTF_SCANCODE;
+
 					ipt[2].type = INPUT_KEYBOARD;;
 					ipt[2].ki.wVk = VK_RETURN;
 					ipt[2].ki.wScan = MapVirtualKey(VK_RETURN, 0);
 					ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[2].ki.dwFlags = KEYEVENTF_KEYUP;
+					ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE |KEYEVENTF_KEYUP;
 					SendInput(3, ipt, sizeof(INPUT));
 					return 1;
 				}
