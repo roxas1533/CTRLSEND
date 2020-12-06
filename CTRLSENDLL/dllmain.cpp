@@ -3,6 +3,8 @@
 #include <string>
 #include<fstream>
 #include <tchar.h>
+#include<imm.h>
+#pragma comment(lib, "imm32.lib")
 #include "dllmain.h"
 #define DLLEXPORT extern "C" __declspec(dllexport)
 
@@ -10,12 +12,14 @@ HINSTANCE g_hInst;
 
 #pragma data_seg(".shared")
 HHOOK g_hHook = NULL; 
+HHOOK g_hHook2 = NULL; 
 
 bool isEnter = false;
 bool isCtrl = false;
 static DWORD dwTargetProcessId = 0;
 static DWORD dwTargetProcessId2 = 0;
 HWND hWnd;
+HIMC lngInputContextHandle;
 #pragma data_seg()
 #pragma comment(linker, "/SECTION:.shared,RWS")
 DLLEXPORT void HookEnd();
@@ -31,7 +35,8 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lp) {
 		GetWindowThreadProcessId(hwnd, &processID);
 		dwTargetProcessId2 = processID;
 		//std::wstring tee = std::to_wstring(processID);
-		//MessageBox(NULL, strWindowText, L"HookStart", MB_OK);
+		lngInputContextHandle = ImmGetContext(hwnd);
+		//MessageBox(NULL, t.c_str(), L"HookStart", MB_OK);
 		hWnd = hwnd;
 		return false;
 	}
@@ -139,29 +144,35 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 				return CallNextHookEx(g_hHook, code, wParam, lParam);
 			if (wParam == VK_CONTROL) {
 				isCtrl = true;
-				return 1;
 			}
+			if (ImmGetOpenStatus(lngInputContextHandle)) {
+				char szBuf[1024];
+				ImmGetCompositionString(lngInputContextHandle, GCS_RESULTSTR, szBuf, 1024);
+				std::string w = szBuf;
+				MessageBoxA(NULL, w.c_str(), "HookStart", MB_OK);
+				return CallNextHookEx(g_hHook, code, wParam, lParam);
+			}
+
 			if (wParam == VK_RETURN&&!isEnter&& !isCtrl) {
-				INPUT ipt[6];
-				//MessageBox(NULL, L"撃ってる", L"HookStart", MB_OK);
+				INPUT ipt[8];
+				isEnter = true;
+				ipt[0].type = INPUT_KEYBOARD;
+				ipt[0].ki.wVk = VK_RETURN;
+				ipt[0].ki.wScan = MapVirtualKey(VK_RETURN, 0);
+				ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
+				ipt[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+
 				ipt[1].type = INPUT_KEYBOARD;;
 				ipt[1].ki.wVk = VK_SHIFT;
 				ipt[1].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
 				ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[1].ki.dwFlags = KEYEVENTF_SCANCODE|KEYEVENTF_KEYUP;
+				ipt[1].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 
 				ipt[2].type = INPUT_KEYBOARD;
 				ipt[2].ki.wVk = VK_SHIFT;
 				ipt[2].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
 				ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
 				ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE;
-
-
-				ipt[0].type = INPUT_KEYBOARD;
-				ipt[0].ki.wVk = VK_RETURN;
-				ipt[0].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-				ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 
 				ipt[3].type = INPUT_KEYBOARD;
 				ipt[3].ki.wVk = VK_RETURN;
@@ -182,12 +193,23 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 				ipt[5].ki.dwExtraInfo = GetMessageExtraInfo();
 				ipt[5].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 
-				SendInput(6, ipt, sizeof(INPUT));
 
-				isEnter = true;
+				ipt[6].type = INPUT_KEYBOARD;
+				ipt[6].ki.wVk = VK_NONCONVERT;
+				ipt[6].ki.wScan = MapVirtualKey(VK_NONCONVERT, 0);
+				ipt[6].ki.dwExtraInfo = GetMessageExtraInfo();
+				ipt[6].ki.dwFlags = KEYEVENTF_SCANCODE;
+				ipt[7].type = INPUT_KEYBOARD;
+				ipt[7].ki.wVk = VK_NONCONVERT;
+				ipt[7].ki.wScan = MapVirtualKey(VK_NONCONVERT, 0);
+				ipt[7].ki.dwExtraInfo = GetMessageExtraInfo();
+				ipt[7].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+				SendInput(8, ipt, sizeof(INPUT));
 				return 1;
 			}
 			else if (wParam == VK_RETURN && isCtrl) {
+				return 1;
+
 				INPUT ipt[4];
 				ipt[0].type = INPUT_KEYBOARD;;
 				ipt[0].ki.wVk = VK_CONTROL;
@@ -213,7 +235,7 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 			}
 		}
 		else {
-			if (wParam == VK_SHIFT) {
+			if (wParam == VK_NONCONVERT) {
 				isEnter = false;
 			}
 			if (wParam == VK_CONTROL) {
@@ -224,13 +246,23 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 	return CallNextHookEx(g_hHook, code, wParam, lParam);
 }
 
+LRESULT CALLBACK MessageHookProcedure(int code, WPARAM wParam, LPARAM lParam) {
+	if (((MSG*)lParam)->message == WM_IME_COMPOSITION) {
+		MessageBox(NULL, L"The hook procedure was called", L"Test Window", MB_OK);
+	}
+
+	return CallNextHookEx(g_hHook2, code, wParam, lParam);
+}
+
 DLLEXPORT void HookStart()
 {
 	g_hHook = SetWindowsHookEx(WH_KEYBOARD, (HOOKPROC)KeyboardProc, g_hInst, 0);
+
 	if (g_hHook == NULL) {
 		MessageBox(NULL, L"フック開始は失敗しました", L"HookStart", MB_OK);
 		return;
 	}
+	//g_hHook2 = SetWindowsHookEx(WH_CALLWNDPROC, (HOOKPROC)MessageHookProcedure, g_hInst, 0);
 }
 
 DLLEXPORT void HookEnd()
