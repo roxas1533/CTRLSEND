@@ -162,11 +162,7 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 		if ((lParam & 0x80000000) == 0) {
 			if (lParam & (1 << 30))
 				return CallNextHookEx(g_hHook, code, wParam, lParam);
-			if (wParam == VK_CONTROL) {
-				isCtrl = true;
-				return 1;
-				//return CallNextHookEx(g_hHook, code, wParam, lParam);
-			}
+
 			if (clock() - pushTime > 30) {
 				isEnter = false;
 			}
@@ -175,7 +171,10 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 				isLastMulti = false;
 				return CallNextHookEx(g_hHook, code, wParam, lParam);
 			}
-
+			if (wParam == VK_CONTROL) {
+				isCtrl = true;
+				return 1;
+			}
 			if (wParam == VK_RETURN && !isEnter && !isCtrl) {
 				INPUT ipt[6];
 				isEnter = true;
@@ -218,9 +217,8 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 				SendInput(6, ipt, sizeof(INPUT));
 				return 1;
 			}
-			else if (wParam == VK_RETURN && isCtrl) {
-				return 1;
-
+			else if (wParam == VK_RETURN && !isEnter &&isCtrl) {
+				isEnter = true;
 				INPUT ipt[4];
 				ipt[0].type = INPUT_KEYBOARD;;
 				ipt[0].ki.wVk = VK_CONTROL;
@@ -247,8 +245,6 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 		}
 		else {
 			if (wParam == VK_CONTROL) {
-				MessageBox(NULL, std::to_string(isLastMulti).c_str(), "HookStart", MB_OK);
-
 				isCtrl = false;
 			}
 		}
