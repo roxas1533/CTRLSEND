@@ -5,25 +5,32 @@
 #include<fstream>
 #include <tchar.h>
 #include<imm.h>
-#include <codecvt>
 #include <time.h>
 #pragma comment(lib, "imm32.lib")
-#include <textstor.h>
-#include <msctf.h>
 #include "dllmain.h"
 #include "mess.h"
+#include <vector>
 #define DLLEXPORT extern "C" __declspec(dllexport)
 
 HINSTANCE g_hInst;
 
 #pragma data_seg(".shared")
+typedef struct _MY_DATA_STRUCT
+{
+	int myInt32;
+	float myFloat;
+	bool myBool;
+}MY_DATA_STRUCT;
+
 HHOOK g_hHook = NULL;
 HHOOK g_hHook2 = NULL;
-
+std::vector<std::vector<INPUT>> in;
 bool isEnter = false;
 bool isCtrl = false;
 bool isLastMulti = false;
-bool isImeNotifyStuck = false;
+bool isImeNotifyStuckForDiscord = false;
+bool isImeNotifyStuckForLine = false;
+bool lineKeylog;
 clock_t  pushTime = 0;
 static DWORD dwTargetProcessId = 0;
 static DWORD dwTargetProcessId2 = 0;
@@ -33,7 +40,6 @@ bool isIme = false;
 #pragma data_seg()
 #pragma comment(linker, "/SECTION:.shared,RWS")
 DLLEXPORT void HookEnd();
-using convert_t = std::codecvt_utf8<wchar_t>;
 
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lp) {
 	TCHAR strWindowText[1024];
@@ -42,21 +48,17 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lp) {
 	if (strWindowText[0] == 0) return TRUE;
 
 	SendMessage((HWND)lp, LB_ADDSTRING, 0, (long)strWindowText);
-	//GetWindowText(hwnd, strWindowText, 1024);
 	if (_tcsstr(strWindowText, TEXT("Discord")) != NULL && _tcsstr(strWindowText, TEXT("ジャンプ")) == NULL) {
 		GetClassName(hwnd, strWindowText, 1024);
-		//if (_tcsstr(strWindowText, TEXT("Chrome_WidgetWin_1")) != NULL) {
+		//if (_tcsstr(strWindowText, TEXT("Chrome_WidgetWin_1")) != NULL)
 		unsigned long processID = 0;
 		GetWindowThreadProcessId(hwnd, &processID);
 		dwTargetProcessId2 = processID;
 
-		//std::wstring tee = std::to_wstring(processID);
-		lngInputContextHandle = ImmGetContext(hwnd);
 		//std::stringstream ss;
 		//ss << std::hex << hwnd;
 		//MessageBox(NULL, ss.str().c_str(), "HookStart", MB_OK);
 		hWnd = hwnd;
-		//}
 
 		return false;
 	}
@@ -68,6 +70,8 @@ void SetMyKeyboardProcTarget()
 	unsigned long processID = 0;
 	targetWnd = FindWindow("Qt5QWindowIcon", NULL);
 	unsigned long h = GetWindowThreadProcessId(targetWnd, &processID);
+	lngInputContextHandle = ImmGetContext(targetWnd);
+
 
 	static HWND hList;
 	EnumWindows(EnumWindowsProc, (LPARAM)hList);
@@ -75,79 +79,74 @@ void SetMyKeyboardProcTarget()
 	dwTargetProcessId = processID;
 }
 
-DLLEXPORT LRESULT CALLBACK CALL(int code, WPARAM wParam, LPARAM lParam) {
-	//SetMyKeyboardProcTarget();
-	if (code == HC_ACTION)
-	{
-		CWPSTRUCT* cwp = (CWPSTRUCT*)lParam;
-
-		if (cwp->message == WM_CREATE)
-		{
-			SetMyKeyboardProcTarget();
-		}
-	}
-
-	return CallNextHookEx(g_hHook, code, wParam, lParam);
+void addInput(std::vector<INPUT>& inputVec, WORD key, int iskeyUp) {
+	INPUT in;
+	in.type = INPUT_KEYBOARD;
+	in.ki.wVk = key;
+	in.ki.wScan = MapVirtualKey(key, 0);
+	in.ki.dwExtraInfo = GetMessageExtraInfo();
+	in.ki.dwFlags = KEYEVENTF_SCANCODE | iskeyUp;
+	inputVec.push_back(in);
 }
 
-DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
-{
+void MakeInput() {
+	std::vector<INPUT> temp;
+	addInput(temp, VK_SHIFT, 0);
+	addInput(temp, VK_RETURN, 0);
+	addInput(temp, VK_SHIFT, KEYEVENTF_KEYUP);
+	addInput(temp, VK_RETURN, KEYEVENTF_KEYUP);
+	in.push_back(temp);
+
+	temp.clear();
+	addInput(temp, VK_CONTROL, KEYEVENTF_KEYUP);
+	addInput(temp, VK_RETURN, 0);
+	addInput(temp, VK_RETURN, KEYEVENTF_KEYUP);
+	in.push_back(temp);
+
+	temp.clear();
+	addInput(temp, VK_RETURN, KEYEVENTF_KEYUP);
+	addInput(temp, VK_SHIFT, KEYEVENTF_KEYUP);
+	addInput(temp, VK_SHIFT, 0);
+	addInput(temp, VK_RETURN, 0);
+	addInput(temp, VK_SHIFT, KEYEVENTF_KEYUP);
+	addInput(temp, VK_RETURN, KEYEVENTF_KEYUP);
+	in.push_back(temp);
+
+	temp.clear();
+	addInput(temp, VK_CONTROL, KEYEVENTF_KEYUP);
+	addInput(temp, VK_RETURN, 0);
+	addInput(temp, VK_RETURN, KEYEVENTF_KEYUP);
+	in.push_back(temp);
+}
+
+DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam) {
 	if (code < 0) {
 		return CallNextHookEx(g_hHook, code, wParam, lParam);
 	}
+
 	DWORD dwPid = GetCurrentProcessId();
 	if (dwTargetProcessId == dwPid) {
+		if (in.size() == 0)
+			MakeInput();
 		if ((lParam & 0x80000000) == 0) {
+			lineKeylog = true;
 			if (lParam & (1 << 30))
 				return CallNextHookEx(g_hHook, code, wParam, lParam);
 
 			if (wParam == VK_CONTROL) {
 				isCtrl = true;
 			}
+			if (wParam == VK_RETURN && isImeNotifyStuckForLine) {
+				isImeNotifyStuckForLine = false;
+				return CallNextHookEx(g_hHook, code, wParam, lParam);
+			}
 			if (wParam == VK_RETURN) {
 				if (!isCtrl) {
-					INPUT ipt[4];
-					ipt[0].type = INPUT_KEYBOARD;
-					ipt[0].ki.wVk = VK_SHIFT;
-					ipt[0].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-					ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[1].type = INPUT_KEYBOARD;
-					ipt[1].ki.wVk = VK_RETURN;
-					ipt[1].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-					ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[2].type = INPUT_KEYBOARD;;
-					ipt[2].ki.wVk = VK_SHIFT;
-					ipt[2].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-					ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-					ipt[3].type = INPUT_KEYBOARD;;
-					ipt[3].ki.wVk = VK_RETURN;
-					ipt[3].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-					ipt[3].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[3].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-					SendInput(4, ipt, sizeof(INPUT));
+					SendInput(in[0].size(), in.at(0).data(), sizeof(INPUT));
 					return 1;
 				}
 				else {
-					INPUT ipt[3];
-					ipt[0].type = INPUT_KEYBOARD;;
-					ipt[0].ki.wVk = VK_CONTROL;
-					ipt[0].ki.wScan = MapVirtualKey(VK_CONTROL, 0);
-					ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-
-					ipt[1].type = INPUT_KEYBOARD;
-					ipt[1].ki.wVk = VK_RETURN;
-					ipt[1].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-					ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[1].ki.dwFlags = KEYEVENTF_SCANCODE;
-
-					ipt[2].type = INPUT_KEYBOARD;;
-					ipt[2].ki.wVk = VK_RETURN;
-					ipt[2].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-					ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
-					ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-					SendInput(3, ipt, sizeof(INPUT));
+					SendInput(in[1].size(), in.at(1).data(), sizeof(INPUT));
 					return 1;
 				}
 			}
@@ -156,9 +155,13 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 			if (wParam == VK_CONTROL) {
 				isCtrl = false;
 			}
+			lineKeylog = false;
 		}
+		return CallNextHookEx(g_hHook, code, wParam, lParam);
 	}
 	else if (dwTargetProcessId2 == dwPid) {
+		if (in.size() == 0)
+			MakeInput();
 		if ((lParam & 0x80000000) == 0) {
 			if (lParam & (1 << 30))
 				return CallNextHookEx(g_hHook, code, wParam, lParam);
@@ -172,97 +175,47 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 				return CallNextHookEx(g_hHook, code, wParam, lParam);
 			}
 			if (wParam == VK_CONTROL) {
-				isCtrl = true;
-				return 1;
+			
+					isCtrl = true;
+					return 1;
 			}
-			if (wParam == VK_RETURN && !isEnter && !isCtrl) {
-				INPUT ipt[6];
-				isEnter = true;
-				ipt[0].type = INPUT_KEYBOARD;
-				ipt[0].ki.wVk = VK_RETURN;
-				ipt[0].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-				ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+				if (wParam == VK_RETURN && !isEnter && !isCtrl) {
+					isEnter = true;
+					SendInput(in[2].size(), in[2].data(), sizeof(INPUT));
+					return 1;
+				}
+				else if (wParam == VK_RETURN && !isEnter && isCtrl) {
+					isEnter = true;
 
-				ipt[1].type = INPUT_KEYBOARD;;
-				ipt[1].ki.wVk = VK_SHIFT;
-				ipt[1].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-				ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[1].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-
-				ipt[2].type = INPUT_KEYBOARD;
-				ipt[2].ki.wVk = VK_SHIFT;
-				ipt[2].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-				ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[2].ki.dwFlags = KEYEVENTF_SCANCODE;
-
-				ipt[3].type = INPUT_KEYBOARD;
-				ipt[3].ki.wVk = VK_RETURN;
-				ipt[3].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-				ipt[3].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[3].ki.dwFlags = KEYEVENTF_SCANCODE;
-
-				ipt[4].type = INPUT_KEYBOARD;;
-				ipt[4].ki.wVk = VK_SHIFT;
-				ipt[4].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-				ipt[4].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[4].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-
-				ipt[5].type = INPUT_KEYBOARD;
-				ipt[5].ki.wVk = VK_RETURN;
-				ipt[5].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-				ipt[5].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[5].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
-
-				SendInput(6, ipt, sizeof(INPUT));
-				return 1;
+					SendInput(in[3].size(), in[3].data(), sizeof(INPUT));
+					return 1;
+				}
 			}
-			else if (wParam == VK_RETURN && !isEnter &&isCtrl) {
-				isEnter = true;
-				INPUT ipt[4];
-				ipt[0].type = INPUT_KEYBOARD;;
-				ipt[0].ki.wVk = VK_CONTROL;
-				ipt[0].ki.wScan = MapVirtualKey(VK_CONTROL, 0);
-				ipt[0].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[0].ki.dwFlags = KEYEVENTF_KEYUP;
-				ipt[1].type = INPUT_KEYBOARD;;
-				ipt[1].ki.wVk = VK_SHIFT;
-				ipt[1].ki.wScan = MapVirtualKey(VK_SHIFT, 0);
-				ipt[1].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[1].ki.dwFlags = KEYEVENTF_KEYUP;
-				ipt[2].type = INPUT_KEYBOARD;
-				ipt[2].ki.wVk = VK_RETURN;
-				ipt[2].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-				ipt[2].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[3].type = INPUT_KEYBOARD;;
-				ipt[3].ki.wVk = VK_RETURN;
-				ipt[3].ki.wScan = MapVirtualKey(VK_RETURN, 0);
-				ipt[3].ki.dwExtraInfo = GetMessageExtraInfo();
-				ipt[3].ki.dwFlags = KEYEVENTF_KEYUP;
-				SendInput(4, ipt, sizeof(INPUT));
-				return 1;
+			else {
+				if (wParam == VK_CONTROL) {
+					isCtrl = false;
+				}
 			}
 		}
-		else {
-			if (wParam == VK_CONTROL) {
-				isCtrl = false;
-			}
-		}
-	}
 
-	return CallNextHookEx(g_hHook, code, wParam, lParam);
+		return CallNextHookEx(g_hHook, code, wParam, lParam);
 }
-
-LRESULT CALLBACK GetIme(int code, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK GetIme(int code, WPARAM wParam, LPARAM lParam){
 	DWORD dwPid = GetCurrentProcessId();
-	if (dwTargetProcessId2 == dwPid) {
+
+	if (dwTargetProcessId == dwPid) {
+		if (((CWPSTRUCT*)lParam)->message == WM_IME_COMPOSITION) {
+			if(lineKeylog)
+				isImeNotifyStuckForLine = true;
+		}
+	}else if (dwTargetProcessId2 == dwPid) {
 		if (((CWPSTRUCT*)lParam)->message == WM_IME_NOTIFY) {
-			isImeNotifyStuck = true;
+			isImeNotifyStuckForDiscord = true;
 		}
 		if (((CWPSTRUCT*)lParam)->message == EM_GETSEL) {
 			isIme = true;
 			isLastMulti = true;
-			if (isImeNotifyStuck) {
+			if (isImeNotifyStuckForDiscord) {
 				if (*((LPDWORD)(((CWPSTRUCT*)lParam)->wParam)) == 100) {
 					isIme = true;
 				}
@@ -270,18 +223,15 @@ LRESULT CALLBACK GetIme(int code, WPARAM wParam, LPARAM lParam) {
 					isIme = false;
 					isLastMulti = false;
 				}
-				isImeNotifyStuck = false;
+				isImeNotifyStuckForDiscord = false;
 			}
-			//				std::stringstream ss;
-			//ss << std::dec << *((LPDWORD)(((CWPSTRUCT*)lParam)->wParam));
-			//	MessageBox(NULL, ss.str().c_str(), "HookStart", MB_OK);
 		}
-
 	}
 	return CallNextHookEx(g_hHook2, code, wParam, lParam);
 }
 DLLEXPORT void HookStart()
 {
+
 	g_hHook = SetWindowsHookEx(WH_KEYBOARD, (HOOKPROC)KeyboardProc, g_hInst, 0);
 
 	if (g_hHook == NULL) {
