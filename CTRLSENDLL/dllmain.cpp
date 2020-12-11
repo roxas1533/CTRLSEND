@@ -8,7 +8,6 @@
 #include <time.h>
 #pragma comment(lib, "imm32.lib")
 #include "dllmain.h"
-#include "mess.h"
 #include <vector>
 #define DLLEXPORT extern "C" __declspec(dllexport)
 
