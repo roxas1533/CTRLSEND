@@ -71,6 +71,7 @@ void SetMyKeyboardProcTarget()
 	unsigned long h = GetWindowThreadProcessId(targetWnd, &processID);
 	lngInputContextHandle = ImmGetContext(targetWnd);
 
+	//MessageBox(NULL, std::string("ss").c_str(), "HookStart", MB_OK);
 
 	static HWND hList;
 	EnumWindows(EnumWindowsProc, (LPARAM)hList);
@@ -202,6 +203,14 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam) 
 LRESULT CALLBACK GetIme(int code, WPARAM wParam, LPARAM lParam){
 	DWORD dwPid = GetCurrentProcessId();
 
+	if(((CWPSTRUCT*)lParam)->message == WM_NCACTIVATE)
+		if(((CWPSTRUCT*)lParam)->wParam ==TRUE)
+			if (!(dwPid == dwTargetProcessId2) && !(dwPid == dwTargetProcessId)) {
+				SetMyKeyboardProcTarget();
+				HookEnd();
+			}
+
+
 	if (dwTargetProcessId == dwPid) {
 		if (((CWPSTRUCT*)lParam)->message == WM_IME_COMPOSITION) {
 			if(lineKeylog)
@@ -214,6 +223,7 @@ LRESULT CALLBACK GetIme(int code, WPARAM wParam, LPARAM lParam){
 		if (((CWPSTRUCT*)lParam)->message == EM_GETSEL) {
 			isIme = true;
 			isLastMulti = true;
+
 			if (isImeNotifyStuckForDiscord) {
 				if (*((LPDWORD)(((CWPSTRUCT*)lParam)->wParam)) == 100) {
 					isIme = true;
