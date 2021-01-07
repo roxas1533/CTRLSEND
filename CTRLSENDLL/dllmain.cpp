@@ -217,7 +217,7 @@ LRESULT CALLBACK GetIme(int code, WPARAM wParam, LPARAM lParam){
 		if(((CWPSTRUCT*)lParam)->wParam ==TRUE)
 			if (!(dwPid == dwTargetProcessId2) && !(dwPid == dwTargetProcessId)) {
 				SetMyKeyboardProcTarget();
-				HookEnd();
+				//HookEnd();
 			}
 
 
