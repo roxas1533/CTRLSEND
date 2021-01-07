@@ -1,6 +1,7 @@
 ﻿// dllmain.cpp : DLL アプリケーションのエントリ ポイントを定義します。
 #include "pch.h"
 #include <string>
+#include <iostream>
 #include <sstream>
 #include<fstream>
 #include <tchar.h>
@@ -75,7 +76,14 @@ void SetMyKeyboardProcTarget()
 
 	static HWND hList;
 	EnumWindows(EnumWindowsProc, (LPARAM)hList);
-
+		// エクスプローラから起動した場合は新規にコンソールを割り当てる
+	if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+		// エクスプローラから起動した場合は新規にコンソールを割り当てる
+		AllocConsole();
+	}
+	FILE* fpOut = NULL;
+	freopen_s(&fpOut, "CONOUT$", "w", stdout);
+	std::cout << processID<<"\n";
 	dwTargetProcessId = processID;
 }
 
@@ -125,6 +133,8 @@ DLLEXPORT LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam) 
 	}
 
 	DWORD dwPid = GetCurrentProcessId();
+	std::cout << dwPid<<","<< dwTargetProcessId << "\n";
+
 	if (dwTargetProcessId == dwPid) {
 		if (in.size() == 0)
 			MakeInput();
