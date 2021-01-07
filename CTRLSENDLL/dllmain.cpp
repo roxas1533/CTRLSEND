@@ -77,13 +77,13 @@ void SetMyKeyboardProcTarget()
 	static HWND hList;
 	EnumWindows(EnumWindowsProc, (LPARAM)hList);
 		// エクスプローラから起動した場合は新規にコンソールを割り当てる
-	if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
-		// エクスプローラから起動した場合は新規にコンソールを割り当てる
-		AllocConsole();
-	}
-	FILE* fpOut = NULL;
-	freopen_s(&fpOut, "CONOUT$", "w", stdout);
-	std::cout << processID<<"\n";
+	//if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+	//	// エクスプローラから起動した場合は新規にコンソールを割り当てる
+	//	AllocConsole();
+	//}
+	//FILE* fpOut = NULL;
+	//freopen_s(&fpOut, "CONOUT$", "w", stdout);
+	//std::cout << processID<<"\n";
 	dwTargetProcessId = processID;
 }
 

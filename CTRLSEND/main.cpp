@@ -4,12 +4,12 @@
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
-        // エクスプローラから起動した場合は新規にコンソールを割り当てる
-        AllocConsole();
-    }
-    FILE* fpOut = NULL;
-    freopen_s(&fpOut,"CONOUT$", "w", stdout);
+    //if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+    //    // エクスプローラから起動した場合は新規にコンソールを割り当てる
+    //    AllocConsole();
+    //}
+    //FILE* fpOut = NULL;
+    //freopen_s(&fpOut,"CONOUT$", "w", stdout);
     MSG msg;
 
     HINSTANCE hinst = LoadLibrary(TEXT("CTRLSENDLL.dll"));
